@@ -1,96 +1,122 @@
-Fetch & Process Amazon Books with Airflow & Docker
+# Fetch & Process Amazon Books with Airflow & Docker
 
-This project demonstrates how to automate the fetching, cleaning, transformation, and storage of book data from Amazon using Apache Airflow within a Docker Compose environment. The pipeline integrates MySQL, PostgreSQL, and Redis to create a robust, scalable workflow.
+![Amazon Books Pipeline Diagram](https://raw.githubusercontent.com/Rawannada/fetch_airflow_docker/main/images/architecture.png)
 
-Features
 
-Automated Workflows (DAGs): Fetch, clean, and insert book data automatically.
+This project automates the fetching, cleaning, transforming, and storing of Amazon Books data using **Apache Airflow** running inside **Docker Compose**.
 
-Data Cleaning & Transformation:
+---
 
-Removes duplicate books.
+##  Features
+- **Automated Airflow DAG** for fetching, cleaning, transforming, and inserting book data
+- **Data Cleaning**
+  - Remove duplicates
+  - Convert ratings to float
+  - Add `recommended_flag` column (Yes/No)
+- **MySQL Storage** for structured book data
+- **Email Notifications** on success/failure
+- **Visualization Output** → `/tmp/top_books.png`
+- **Fully containerized** using Docker Compose (Airflow + MySQL + Postgres + Redis)
 
-Converts ratings to float.
+---
+##  Architecture Flow
+**Amazon Books → Airflow DAG → MySQL → Visualization → Email Notification**
 
-Adds recommended_flag column (Yes if rating ≥ 4.0, No otherwise).
+Inside Docker:
+- Airflow Webserver
+- Airflow Scheduler
+- MySQL
+- PostgreSQL (Airflow metadata)
+- Redis
 
-MySQL Storage: Stores structured book data with title, author, rating, and recommended_flag.
-
-Email Notifications: Sends success or failure emails after pipeline completion.
-
-Containerized Environment: Docker Compose integrates Airflow, MySQL, PostgreSQL, and Redis.
-
-Scalable Architecture: Easily add new DAGs, operators, or plugins.
+---
+##  Project Structure
 ```bash
-Project Structure
 fetch_with_docker/
 ├── dags/                # Airflow DAG definitions
-├── data/                # Raw data (ignored in Git)
-├── processed_data/      # Cleaned/processed data
-├── plugins/             # Custom Airflow plugins
-├── logs/                # Airflow logs (ignored in Git)
-├── Dockerfile           # Custom Docker image definition
+├── assets/              # Architecture diagrams (e.g., .png)
 ├── docker-compose.yml   # Docker services configuration
 ├── requirements.txt     # Python dependencies
-├── .gitignore           # Specifies files/folders to ignore
-└── README.md            # Project documentation
+└── README.md            # This document
 ```
-Requirements
 
-Docker: Core platform for containerization.
-
-Docker Compose: Orchestrates multi-container setup.
-
-Python 3.9+: Develop and run Airflow DAGs.
-
-Setup & Run
-
-Clone the repository:
+---
+##  Quick Setup
+### 1️ Build & Start Services
 ```bash
-git clone https://github.com/Rawannada/fetch_data_airflow.git
-cd fetch_data_airflow
+bash
+docker-compose up --build -d
 ```
 
-Build and start services:
+### 2️ Access Airflow
+- URL: **http://localhost:8080**
+- Credentials:
+  ```bash
+  user: airflow
+  password: airflow
+  ```
+
+### 3️ Trigger DAG
+- Open Airflow UI
+- Look for: `amazon_books_pipeline`
+- Turn it **ON**
+- Click **Trigger DAG**
+
+---
+## 🗄️ MySQL Schema
+| Column            | Type        | Description           |
+|------------------|-------------|-----------------------|
+| id               | INT         | Primary key           |
+| title            | VARCHAR     | Book title            |
+| author           | VARCHAR     | Book author           |
+| rating           | FLOAT       | Cleaned rating        |
+| recommended_flag | VARCHAR(3)  | Yes / No              |
+
+---
+## 🧪 DAG Tasks Overview
+1. **fetch_book_data** → Fetch from Amazon
+2. **clean_transform_data** → Process dataframe
+3. **insert_into_mysql** → Store into MySQL
+4. **generate_visualization** → Save `/tmp/top_books.png`
+5. **send_email_notification** → SMTP email
+
+---
+## 🔌 Connecting Services
+### Airflow → MySQL Connection
+In Airflow UI:
+- Go to **Admin → Connections**
+- Add:
+  ```bash
+  Conn ID: mysql_default
+  Conn Type: MySQL
+  Host: mysql
+  Login: root
+  Password: root
+  Schema: books_db
+  Port: 3306
+  ```
+
+### Airflow SMTP Email
+Set in `docker-compose.yml`:
 ```bash
-
-docker-compose up --build
+AIRFLOW__SMTP__SMTP_HOST=smtp.gmail.com
+AIRFLOW__SMTP__SMTP_USER=your_email@gmail.com
+AIRFLOW__SMTP__SMTP_PASSWORD=your_app_password
 ```
 
-Access the Airflow UI:
+---
+## Stop Services
+```bash
+docker-compose down
+```
+Reset everything:
+```bash
+docker-compose down -v
+```
 
-URL: http://localhost:8080
+- **Email not working** → verify Gmail App Password
 
-Default Credentials: airflow / airflow
 
-Trigger the DAG:
-
-Navigate to the DAGs page in the Airflow UI.
-
-Find fetch_and_store_amazon_books and click Trigger DAG.
-
-Services Overview
-Service	Description
-postgres	Metadata database for Airflow
-mysql	Stores project-specific book data
-redis	Caching and message brokering
-airflow-webserver	Airflow UI
-airflow-scheduler	Schedules and triggers DAGs
-
-All database and Airflow data are persisted using Docker volumes.
-
-Notes
-
-Sensitive files (.env, logs, raw data, database files) are excluded via .gitignore.
-
-To add new workflows, create a new Python file in dags/.
-
-For custom logic/operators, use the plugins/ folder.
-
-Author
-
-Rawan Nada
-
-Email: Rwannada22@gmail.com
-
+**Rawan Nada**  
+Email: rwannada22@gmail.com  
 LinkedIn: https://www.linkedin.com/in/rawan-nada-a63994281
